@@ -1,27 +1,41 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 import cv2
 import threading
 import time
 
-# from yolo_detector import PersonDetector
 from yolo_detector import PersonTracker
 from pose_detector import PoseDetector
 from eye_detector import EyeDetector
 from sleep_logic import SleepLogic
 from gui_light import LightGUI
 
-# detector = PersonDetector()
-tracker=PersonTracker()
+print("Program started")
+
+tracker = PersonTracker()
 pose = PoseDetector()
 eyes = EyeDetector()
 logic = SleepLogic()
+
 last_person_seen = time.time()
 
 gui = LightGUI()
 
+print("Components initialized")
+
 cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+
+if not cap.isOpened():
+    print("❌ Camera failed to open")
+    exit()
+
+print("Camera initialized")
 
 
 def vision_loop():
+
+    print("Starting vision loop")
 
     global last_person_seen
 
@@ -35,6 +49,7 @@ def vision_loop():
         persons = tracker.track(frame)
 
         # ----------- NO PERSON DETECTED -----------
+
         if len(persons) == 0:
 
             if time.time() - last_person_seen > 5:
@@ -43,23 +58,24 @@ def vision_loop():
 
                 cv2.putText(frame,
                             "ROOM EMPTY - LIGHT OFF",
-                            (30,40),
+                            (30, 40),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             1,
-                            (0,0,255),
+                            (0, 0, 255),
                             2)
 
             else:
 
                 cv2.putText(frame,
                             "No person detected",
-                            (30,40),
+                            (30, 40),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             1,
-                            (0,255,255),
+                            (0, 255, 255),
                             2)
 
         # ----------- PERSON DETECTED -----------
+
         else:
 
             last_person_seen = time.time()
@@ -83,16 +99,16 @@ def vision_loop():
 
                 sleep = logic.check_sleep(pid, pose_state, eye_state, bbox)
 
-                cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
                 label = f"ID {pid} | {pose_state} | {eye_state}"
 
                 cv2.putText(frame,
                             label,
-                            (x1,y1-10),
+                            (x1, y1 - 10),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6,
-                            (255,255,0),
+                            (255, 255, 0),
                             2)
 
                 if not sleep:
@@ -106,10 +122,10 @@ def vision_loop():
 
                 cv2.putText(frame,
                             "LIGHT ON",
-                            (30,40),
+                            (30, 40),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             1,
-                            (0,255,0),
+                            (0, 255, 0),
                             2)
 
             else:
@@ -118,26 +134,43 @@ def vision_loop():
 
                 cv2.putText(frame,
                             "LIGHT OFF - Sleeping",
-                            (30,40),
+                            (30, 40),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             1,
-                            (0,0,255),
+                            (0, 0, 255),
                             2)
-                
+
         cv2.putText(frame,
-            f"Persons: {len(persons)}",
-            (30,80),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (255,255,255),
-            2)
-        
-        # Show frame
+                    f"Persons: {len(persons)}",
+                    (30, 80),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (255, 255, 255),
+                    2)
+
         cv2.imshow("Smart Room AI", frame)
 
         if cv2.waitKey(1) == 27:
             gui.running = False
             break
 
+    print("Exiting vision loop")
+
     cap.release()
     cv2.destroyAllWindows()
+
+
+# =============================
+# START SYSTEM
+# =============================
+
+vision_thread = threading.Thread(target=vision_loop)
+vision_thread.daemon = True
+vision_thread.start()
+
+print("Vision thread started")
+
+# Start GUI
+gui.run()
+
+print("Program closed")
