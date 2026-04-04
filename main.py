@@ -1,12 +1,13 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+import serial
 import cv2
 import threading
 import time
 
 from yolo_detector import PersonTracker
-from pose_detector import PoseDetector
+# from pose_detector import PoseDetector
 from eye_detector import EyeDetector
 from sleep_logic import SleepLogic
 from gui_light import LightGUI
@@ -14,13 +15,15 @@ from gui_light import LightGUI
 print("Program started")
 
 tracker = PersonTracker()
-pose = PoseDetector()
+#pose = PoseDetector()
 eyes = EyeDetector()
 logic = SleepLogic()
 
 last_person_seen = time.time()
 
 gui = LightGUI()
+#arduino = serial.Serial('COM7', 9600)
+time.sleep(2)
 
 print("Components initialized")
 
@@ -94,14 +97,14 @@ def vision_loop():
                 if crop is None or crop.size == 0:
                     continue
 
-                pose_state = pose.detect(crop)
+               # pose_state = pose.detect(crop)
                 eye_state = eyes.detect(crop)
 
-                sleep = logic.check_sleep(pid, pose_state, eye_state, bbox)
+                sleep = logic.check_sleep(pid, eye_state, bbox)
 
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-                label = f"ID {pid} | {pose_state} | {eye_state}"
+                label = f"ID {pid} | {eye_state}"
 
                 cv2.putText(frame,
                             label,
@@ -119,6 +122,7 @@ def vision_loop():
             if someone_awake:
 
                 gui.light_on()
+                #arduino.write(b'1') #Turn bulb ON
 
                 cv2.putText(frame,
                             "LIGHT ON",
@@ -131,6 +135,7 @@ def vision_loop():
             else:
 
                 gui.light_off()
+                #arduino.write(b'0') #Turn bulb OFF
 
                 cv2.putText(frame,
                             "LIGHT OFF - Sleeping",
